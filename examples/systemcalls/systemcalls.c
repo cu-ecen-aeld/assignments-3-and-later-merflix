@@ -1,5 +1,9 @@
 #include "systemcalls.h"
-#include <stdlib.h>  // for system()
+#include <stdlib.h>   // for system()
+#include <unistd.h>   // for fork()
+#include <sys/wait.h> // for waitpid
+#include <fcntl.h>
+#include "stdbool.h"
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -16,7 +20,7 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-    if( system(cmd) == 0 ) return true;
+    if( system(cmd) == 0 ) return true; // merflix implementation
     else return false;
 
     //return true;
@@ -60,9 +64,31 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    // merflix implementation
+    char* path= command[0];
+    if( path[0] != '/' ) {
+        printf("ERROR: NO ABSOLUTE PATH  %d\n", count);
+        printf("path= %s, 2nd arg= %s\n", path, command[1]);
+        return false;
+    }
+
+    int status;
+    pid_t pid;
+    pid = fork ( );
+    if (pid == -1)
+        return -1;
+    else if (pid == 0) {
+        execv(command[0], command);
+        exit (-1);
+    }
+    if (waitpid (pid, &status, 0) == -1)
+        return -1;
+    else if (WIFEXITED (status))
+        return WEXITSTATUS (status);
+    return -1;
+
 
     va_end(args);
-
     return true;
 }
 
@@ -94,6 +120,25 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    // merflix implementation
+    command[0]="/usr/bin";
+    command[1]= "-l";
+    int kidpid;
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd < 0) { perror("open"); abort(); }
+    switch (kidpid = fork()) {
+        case -1: perror("fork"); abort();
+        case 0:
+            if (dup2(fd, 1) < 0) { perror("dup2"); abort(); }
+           // execvp(cmd, args); perror("execvp"); abort();
+            execv(command[0],command); perror("execvp"); abort();
+            close(fd);
+        default:
+            close(fd);
+            /* do whatever the parent wants to do. */
+    }   
+
+
 
     va_end(args);
 
