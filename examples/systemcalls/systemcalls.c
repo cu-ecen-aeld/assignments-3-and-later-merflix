@@ -20,10 +20,9 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
-    if( system(cmd) == 0 ) return true; // merflix implementation
-    else return false;
+    if( system(cmd) < 0 ) return false; // merflix implementation ok
+    else return true;
 
-    //return true;
 }
 
 /**
@@ -53,7 +52,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count]; // line commented by merflix
 
 /*
  * TODO:
@@ -65,28 +64,22 @@ bool do_exec(int count, ...)
  *
 */
     // merflix implementation
-    char* path= command[0];
-    if( path[0] != '/' ) {
-        printf("ERROR: NO ABSOLUTE PATH  %d\n", count);
-        printf("path= %s, 2nd arg= %s\n", path, command[1]);
-        return false;
-    }
+    pid_t pid = fork ( );
 
-    int status;
-    pid_t pid;
-    pid = fork ( );
-    if (pid == -1)
-        return -1;
-    else if (pid == 0) {
-        execv(command[0], command);
-        exit (-1);
+    if (pid < 0){
+        return false; //fail to fork
     }
-    if (waitpid (pid, &status, 0) == -1)
-        return -1;
-    else if (WIFEXITED (status))
-        return WEXITSTATUS (status);
-    return -1;
-
+    else if (pid > 0) 
+    {
+        int status;
+        pid_t x = waitpid(pid, &status, 0);
+        if (x < 0 || !(WIFEXITED(status) == true &&  WEXITSTATUS(status) == EXIT_SUCCESS))
+            return false;
+    }
+    else
+    {
+       execv(command[0], command);
+    }
 
     va_end(args);
     return true;
@@ -121,24 +114,30 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
     // merflix implementation
-    command[0]="/usr/bin";
-    command[1]= "-l";
-    int kidpid;
     int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
     if (fd < 0) { perror("open"); abort(); }
-    switch (kidpid = fork()) {
-        case -1: perror("fork"); abort();
-        case 0:
+    int kidpid = fork();
+
+    switch (kidpid) {
+        case -1: 
+            perror("fork"); abort();
+            break;
+        case 1: //we are the parent
+            close(fd);
+            int status;
+            pid_t x = waitpid(kidpid, &status, 0);
+            if (x < 0 || !(WIFEXITED(status) == true &&  WEXITSTATUS(status) == EXIT_SUCCESS))
+              return false;
+            break;
+        case 0: //we are the child
             if (dup2(fd, 1) < 0) { perror("dup2"); abort(); }
-           // execvp(cmd, args); perror("execvp"); abort();
-            execv(command[0],command); perror("execvp"); abort();
+            execv(command[0], command);
             close(fd);
+            break;
         default:
-            close(fd);
-            /* do whatever the parent wants to do. */
+            //nothing to do
+            break;
     }   
-
-
 
     va_end(args);
 
