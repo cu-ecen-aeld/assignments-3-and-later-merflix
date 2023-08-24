@@ -1,9 +1,4 @@
 #include "systemcalls.h"
-#include <stdlib.h>   // for system()
-#include <unistd.h>   // for fork()
-#include <sys/wait.h> // for waitpid
-#include <fcntl.h>
-#include "stdbool.h"
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -21,9 +16,9 @@ bool do_system(const char *cmd)
  *   or false() if it returned a failure
 */
     // merflix implementation
-    if( system(cmd) < 0 ) return false; // merflix implementation ok
-    else return true;
-
+    int x = system(cmd);
+    if (x<0) return false;
+    return true;
 }
 
 /**
@@ -64,23 +59,25 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-    // merflix implementation
-    pid_t pid = fork ( );
+   // merflix implementation
+   pid_t kidpid = fork();
 
-    if (pid < 0){
-        return false; //fail to fork
-    }
-    else if (pid > 0) 
-    {
-        int status;
-        pid_t x = waitpid(pid, &status, 0);
-        if (x < 0 || !(WIFEXITED(status) == true &&  WEXITSTATUS(status) == EXIT_SUCCESS))
-            return false;
-    }
-    else
-    {
+   if (kidpid < 0)
+   {
+       // Failed to fork!
+       return false;
+   } else if (kidpid > 0)
+   {
+       int status;
+       pid_t x = waitpid(kidpid, &status, 0);
+       if (x < 0 || !(WIFEXITED(status) == true &&  WEXITSTATUS(status) == EXIT_SUCCESS))
+           return false;
+
+   }
+   else
+   {
        execv(command[0], command);
-    }
+   }
 
     va_end(args);
     return true;
@@ -118,27 +115,28 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
     if (fd < 0) { perror("open"); abort(); }
     int kidpid = fork();
+    if (kidpid < 0)
+    {
+     perror("fork"); abort();
+    }
+    else if (kidpid > 0)
+    {
+        // We are the parent
+        close(fd);
+        // Wait for the kid and check the status
+        int status;
+        pid_t x = waitpid(kidpid, &status, 0);
+        if (x < 0 || !(WIFEXITED(status) == true &&  WEXITSTATUS(status) == EXIT_SUCCESS))
+            return false;
+    }
+    else
+    {
+        // Children
+        if (dup2(fd, 1) < 0) { perror("dup2"); abort(); }
+        close(fd);
+        execv(command[0], command);
+    }
 
-    switch (kidpid) {
-        case -1: 
-            perror("fork"); abort();
-            break;
-        case 1: //we are the parent
-            close(fd);
-            int status;
-            pid_t x = waitpid(kidpid, &status, 0);
-            if (x < 0 || !(WIFEXITED(status) == true &&  WEXITSTATUS(status) == EXIT_SUCCESS))
-              return false;
-            break;
-        case 0: //we are the child
-            if (dup2(fd, 1) < 0) { perror("dup2"); abort(); }
-            execv(command[0], command);
-            close(fd);
-            break;
-        default:
-            //nothing to do
-            break;
-    }   
 
     va_end(args);
 
