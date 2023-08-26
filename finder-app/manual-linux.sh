@@ -21,7 +21,14 @@ else
 	echo "Using passed directory ${OUTDIR} for output"
 fi
 
-mkdir -p ${OUTDIR}
+OUTDIR=$(readlink -f "${OUTDIR}") # replace OUTDIR by its fullpath - merflix
+
+if [ mkdir -p ${OUTDIR} ]: then
+    echo "created OUTDIR successful"
+else
+    echo "created OUTDIR failed"
+    exit 1  # the script is aboted if OUTDIR can't be created - merflix
+fi
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
@@ -34,7 +41,9 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     echo "Checking out version ${KERNEL_VERSION}"
     git checkout ${KERNEL_VERSION}
 
-    # TODO: Add your kernel build steps here
+    # TODO: Add your kernel build steps here (p.62 of my week2.odt)
+    make ARCH=arm64
+    CROSS_COMPILE= aarch64-none-linux-gnu-
 fi
 
 echo "Adding the Image in outdir"
@@ -48,6 +57,14 @@ then
 fi
 
 # TODO: Create necessary base directories
+mkdir $OUTDIR/
+mkdir $OUTDIR/lib
+mkdir $OUTDIR/etc
+mkdir $OUTDIR/dev
+mkdir $OUTDIR/proc
+mkdir $OUTDIR/sys
+mkdir $OUTDIR/lib/modules   # end of merflix fs tree
+
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
