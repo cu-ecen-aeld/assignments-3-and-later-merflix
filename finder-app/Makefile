@@ -1,7 +1,7 @@
 # -------------------------------------------------
 # Makefile for writer.c                  21.08.2023
 # -------------------------------------------------
-CROSS_COMPILE= aarch64-none-linux-gnu- 
+CROSS_COMPILE= #aarch64-none-linux-gnu- 
 
 # default
 CC=gcc -I/usr/local/include -L/usr/local/lib 
