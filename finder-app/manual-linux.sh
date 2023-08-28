@@ -17,11 +17,13 @@ if [ $# -lt 1 ]
 then
 	echo "Using default directory ${OUTDIR} for output"
 else
-	OUTDIR=$(realpath $1)
+	#OUTDIR=$(realpath $1)
+	OUTDIR=$1 # example: /home/meichen/Outdir
+    OUTDIR=$(readlink -f "${OUTDIR}") # replace OUTDIR by its fullpath - merflix
 	echo "Using passed directory ${OUTDIR} for output"
 fi
 
-# OUTDIR=$(readlink -f "${OUTDIR}") # replace OUTDIR by its fullpath - merflix
+
 
 mkdir -p ${OUTDIR}
 
@@ -76,7 +78,7 @@ git clone git://busybox.net/busybox.git
     git checkout ${BUSYBOX_VERSION}
     # TODO:  Configure busybox
     make distclean # cf p1 merflix 
-    #make defconfig # cf p1 merflix
+    make defconfig # cf p1 merflix
 else
     cd busybox
 fi
