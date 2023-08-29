@@ -1,22 +1,20 @@
-#!/usr/bin/bash
+#!/bin/bash
 
-filesdir=$1 
-searchstr=$2
-
-if [ -z $filesdir ] || [ -z $searchstr ]; then
-    echo "Missing parameters"
+if [[ $# -ne 2 ]]
+then
+    echo "App needs exactly 2 arguments"
     exit 1
 fi
 
-if [ ! -d $filesdir ]; then
-    echo "Directory is invalid"
+if [[ -d "$1" ]]
+then
+    echo ""
+else
+    echo "$1 is not a directory"
     exit 1
 fi
 
+num_files=$(find $1 -maxdepth 1 -type f | wc -l)
+matches=$(find $1 -maxdepth 1 -type f -exec cat {} \; | grep "$2" -c)
 
-X=$(find $filesdir -type f | wc -l)
-Y=$(grep -r $searchstr $filesdir | wc -l)
-
-echo "The number of files are $X and the number of matching lines are $Y"
-
-
+echo "The number of files are $num_files and the number of matching lines are $matches"
