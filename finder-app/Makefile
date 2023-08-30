@@ -1,18 +1,13 @@
-.PHONY: clean
+CROSS_COMPILE = aarch64-none-linux-gnu-gcc
+NATIVE = gcc
+TARGET = writer
+SRC = writer.c
 
-CROSS_COMPILE := aarch64-none-linux-gnu-gcc
-# CXX :=gcc
-MY_FLAGS := -c -g -Wall
-objs := writer.o
+all: 
+	$(NATIVE) $(SRC) -o $(OBJECTS) $(TARGET)
 
-all: writer
-
-writer: $(objs)
-	$(CROSS_COMPILE) -o $@ $^
-
-%.o: %.c
-	$(CROSS_COMPILE) $(MY_FLAGS) $<
+arm:
+	$(CROSS_COMPILE) $(SRC) -o $(OBJECTS) $(TARGET)
 
 clean:
-	rm -f $(objs)
-
+	rm -rf $(OBJECTS) $(TARGET)
