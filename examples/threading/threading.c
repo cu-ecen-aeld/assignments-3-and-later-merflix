@@ -5,7 +5,7 @@
 #include <errno.h>
 
 // Optional: use these functions to add debug or error prints to your application
-#define DEBUG_LOG(msg,...)
+#define DEBUG_LOG(msg,...) printf("threading: " msg "\n" , ##__VA_ARGS__)
 //#define DEBUG_LOG(msg,...) printf("threading: " msg "\n" , ##__VA_ARGS__)
 #define ERROR_LOG(msg,...) printf("threading ERROR: " msg "\n" , ##__VA_ARGS__)
 
@@ -18,15 +18,13 @@ void* threadfunc(void* thread_param)
     //struct thread_data* thread_func_args = (struct thread_data *) thread_param;
     struct thread_data* thread_func_args = (struct thread_data *) thread_param;
     
-    sleep( thread_func_args->wait_to_obtain_ms );
+    usleep( thread_func_args->wait_to_obtain_ms * 1000); // sleep fail
     pthread_mutex_lock (thread_func_args->mutex); 
 
+    usleep(thread_func_args->wait_to_release_ms * 1000);
+    pthread_mutex_unlock (thread_func_args->mutex); // sleep fail
+
     thread_func_args->thread_complete_success = true;
-    printf("set thread_complete_success = true\n");
-
-    sleep(thread_func_args->wait_to_release_ms );
-    pthread_mutex_unlock (thread_func_args->mutex); 
-
 
     return thread_param;
 }
@@ -42,27 +40,20 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
      *
      * See implementation details in threading.h file comment block
      */
+
+
     struct thread_data *ptr;
     ptr = (struct thread_data *)malloc(sizeof(struct thread_data)); // dynamic memory allocation
-    if( ptr == NULL ) { 
-        printf("memory allocation to thread_data failed\n");
-        return false;
-    }
 
-    errno = pthread_mutex_init(mutex, NULL);
-    
+    ptr->mutex = mutex;
     ptr->wait_to_obtain_ms  = wait_to_obtain_ms;
     ptr->wait_to_release_ms = wait_to_release_ms;
-    ptr->mutex = mutex;
+    ptr->thread_complete_success = false;
 
-    pthread_create(thread, NULL, threadfunc, (void *)ptr);
-    ptr->thread_complete_success = true;
-    printf("THREAD TERMINATED WITH SUCCESS %d\n",ptr->thread_complete_success );
-    ptr->thread_complete_success = true;
+    pthread_create(thread, NULL, threadfunc, ptr);
 
-    pthread_join((*thread), NULL);
-
-    free(ptr);
+    //pthread_join((*thread), NULL); // unit-test fail
+    //free(ptr);                     // unit-test fail
 
     return true;
 }
