@@ -4,6 +4,9 @@ TARGET = writer
 SRC = writer.c
 
 all: 
+	$(CROSS_COMPILE) $(SRC) -o $(OBJECTS) $(TARGET)
+
+x86-64: 
 	$(NATIVE) $(SRC) -o $(OBJECTS) $(TARGET)
 
 arm:
