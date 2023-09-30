@@ -1,256 +1,166 @@
-  #include <sys/types.h>
-  #include <sys/socket.h>
-  #include <netinet/in.h>
-  #include <arpa/inet.h>
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <string.h>
-  #include <unistd.h>
-  #include <syslog.h>
-  #include <stdbool.h>
-  #include <netdb.h>
-  #include<signal.h>
-  #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <errno.h>
+#include <syslog.h>
+#include <signal.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-  #define BUF_SIZE 200000
-  
-  //***********
-  //Signal part
-  //*********** 
-  bool sig_success =false;
-  static void signal_handler (int signal_number )
-  {
-  if ((signal_number==SIGINT) || (signal_number == SIGTERM) ){
-    sig_success = true;
-  }
-  }
-  
+#define PORT 9000
+#define FILE_PATH "/var/tmp/aesdsocketdata"
 
-  int main(void)
-  {
+#define BUFFER_SIZE 1024
+#define PACKET_SIZE 20 * 1024
 
-  char *filename = "/var/tmp/aesdsocketdata";
-  printf("fichier detruit\n");
-  remove(filename);
-  FILE *fd2 = fopen (filename, "w");
-  fclose(fd2);
-  //*****************
-  //make it Demon !!
-  //****************
-  
-   pid_t pid;
-   /* Fork off the parent process */
-    pid = fork();
-    
-    /* An error occurred */
-    if (pid < 0)
-        exit(EXIT_FAILURE);
-    
-     /* Success: Let the parent terminate */
-    if (pid > 0)
-        exit(EXIT_SUCCESS);
-    
-    /* On success: The child process becomes session leader */
-    if (setsid() < 0)
-        exit(EXIT_FAILURE);
-  
-    
-    struct addrinfo hints,*result;
-    struct addrinfo *servinfo;
-    struct addrinfo  *rp;
-    char buf[BUF_SIZE];
- 
-    const char port[4] = "9000";
-    int status;
-    
-    struct sockaddr_in *addr4;
-    struct sockaddr *addr;
-    struct sigaction new_action;
-    bool sig_success =false;
-    printf("start :\n");
-    //static char ipaddr[INET_ADDRSTRLEN];
-    memset(&new_action,0,sizeof(struct sigaction));
-      
-    //*******************
-    // signal handler
-    //*******************
-    new_action.sa_handler=signal_handler;
-    
-    if (sigaction(SIGTERM,&new_action,NULL) !=0){
-    
-    syslog(LOG_ERR, "Error registring SIGTERM");}
-    
-     if (sigaction(SIGINT,&new_action,NULL) !=0){
-    
-    syslog(LOG_ERR, "Error registring SIGINT");}
-    
-    
-    openlog("aesdsocket", LOG_PID|LOG_CONS, LOG_USER);
-    
-     //*************************
-     // Configuring local address  
-     //****************************
-    memset(&hints, 0, sizeof (hints));
-  
-    printf("start getaddr stuff :\n");
+bool accept_conn_loop = true;
 
-    hints.ai_family = AF_INET;    /* Allow IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
-    hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
-
-    if (status = getaddrinfo(0,port,&hints,&servinfo) != 0){
-    syslog(LOG_ERR, "getaddrinfo error: %s\n",gai_strerror(status));
-    printf("something wrong %d:\n",status);
-    exit(EXIT_FAILURE);
-    }
-    
-    //***************
-    //Socket openning
-    //***************
-    
-    int SocketFD = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol);
-    if (SocketFD == -1) {
-      perror("cannot create socket");
-      syslog(LOG_ERR, "cannot open socket");
-      exit(EXIT_FAILURE);
-    }
-   printf("before while :\n"); 
-   
-   
-   //********************
-   //    socket reuse 
-   //*******************
-    int reutiliser = 1;
-    if (setsockopt(SocketFD, SOL_SOCKET, SO_REUSEADDR, &reutiliser, sizeof(reutiliser)) == -1) {
-        syslog(LOG_ERR, "cannot reuse socket");
-        close(SocketFD);
-        exit(EXIT_FAILURE);
-    }
-   
-   //***************
-   //bind
-   //***************
-   printf("about to bind :\n");
-    if (bind(SocketFD,servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-      perror("bind failed");
-      close(SocketFD);
-      freeaddrinfo(servinfo);
-      exit(EXIT_FAILURE);
-    } 
-   
-  int ConnectFD = 0; 
-  while (1){
-    FILE *fp  = fopen (filename, "a");
-    if (sig_success) {
-      syslog(LOG_ERR, "Caught signal, exiting");
-      printf("Caught signal, exiting");
-      close(SocketFD);
-      close(ConnectFD);
-      freeaddrinfo(servinfo);
-      exit(EXIT_SUCCESS);
-      }
-    
-  printf("about to listen :\n");
-    if (listen(SocketFD, 10) == -1) {
-      perror("listen failed");
-      close(SocketFD);
-      freeaddrinfo(servinfo);
-      exit(EXIT_FAILURE);
-    }
-    //***************
-    //listen
-    //***************
-      struct sockaddr_storage client_address;
-      socklen_t client_len = sizeof(client_address);
-      
-      socklen_t clientaddr_size = sizeof(struct sockaddr);
-      ConnectFD = accept(SocketFD, (struct sockaddr*) &client_address, &client_len);
-
-  printf("voici connectfd : %d\n",ConnectFD);
-  
-
-      if (ConnectFD == -1) {
-        printf("accept failed");
-        close(ConnectFD);
-        close(SocketFD);
-        
-        freeaddrinfo(servinfo);
-        exit(EXIT_FAILURE);
-        
-      }
-      
-      //***************
-      //getname
-      //***************
-      char clientip[100] ;
-      printf("trying to got pair name \n");
-      int res = getnameinfo((struct sockaddr*) &client_address,client_len, clientip, sizeof(clientip),0,0,NI_NUMERICHOST);
-      printf("got pair name \n");
-
-	
-	  printf("got pair address \n");
-      printf ("%s\n",clientip);
-      
-      syslog(LOG_INFO,"Accepted connection from%s\n", clientip);
-    
-      //***************
-      //receive data
-      //***************  
-    
-      printf("voici connectfd : %d\n",ConnectFD);
-  ssize_t r = recv( ConnectFD , buf , BUF_SIZE,0);
-  printf("voici la donnee recu : %s\n",buf);
-      /* perform read write operations ... 
-      read(ConnectFD, buff, size)
-      */
-      printf("declaring log \n");
-      
-      
-      printf("data logged:\n");
-      
-
-      int output = fprintf (fp, "%s\n", buf); 
-      fclose(fp);
-      printf ("longueur de la ligne :%ld",strlen(buf));	
-      // traitement recv
-      printf("data written in file:\n");	
-      char *line=NULL;
-      ssize_t nread = 0;
-      size_t lent = 0;
-
-  
-      FILE *filename1 = fopen (filename, "r");
-      
-                         if (filename1 == NULL) {
-                        printf("Error opening data file\n");
-                        exit(-1);}
-        
-        printf("ready to read from file:\n");
-        
-        
-        
-        while (( nread = getline(&line, &lent, filename1)) > 0){
-       
-        printf("we are here\n");
-        printf("%s\n",line);
-        //line[strcspn(line, "\n")] = 0;
-        printf ("longueur de la ligne :%ld",strlen(line));
-        if (strlen(line) !=1) {send (ConnectFD,line,nread,0);};
-        };
-        
-      if (shutdown(ConnectFD, SHUT_RDWR) == -1) {
-        perror("shutdown failed");
-        close(ConnectFD);
-        freeaddrinfo(servinfo);
-        exit(EXIT_FAILURE);
-      }
-      close(ConnectFD);
-      //close(SocketFD);
-    }
-
-    close(SocketFD);
-    freeaddrinfo(servinfo);
-    closelog();
-    return EXIT_SUCCESS; 
+int accept_conn(int sockfd, struct sockaddr *addr_cli) {
+    int addrlen = sizeof(*addr_cli);
+    return accept(sockfd, addr_cli, (socklen_t *)(&addrlen));
 }
 
+static void signal_handler(int sig_no) {
+    if ((sig_no == SIGINT) || (sig_no == SIGTERM)) {
+        syslog(LOG_INFO, "Caught signal, exiting");
+        accept_conn_loop = false;
+    }
+}
+
+void get_ipcli(const struct sockaddr *addr_cli, char *s_ipcli) {
+    struct sockaddr_in *pV4Addr = (struct sockaddr_in *)addr_cli;
+    struct in_addr ipcli = pV4Addr->sin_addr;
+    char str_ipcli[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ipcli, str_ipcli, INET_ADDRSTRLEN);
+    strcpy(s_ipcli, str_ipcli);
+}
+
+void socket_daemon() {
+    // PID: Process ID
+    // SID: Session ID
+    pid_t pid, sid;
+    pid = fork();
+    if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    }
+    
+    sid = setsid();
+    if (sid < 0) {
+        exit(EXIT_FAILURE);
+    }
+    if ((chdir("/")) < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+}
+
+int main(int argc, char **argv)
+{
+    char port[5];
+    memset(port, 0, sizeof port);
+    sprintf(port, "%d", PORT);
+
+    struct addrinfo* addr_info = NULL;
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd==-1)
+        exit(-1);
+
+    int rc_bind = getaddrinfo(NULL, port, &hints, &addr_info); 
+    if(rc_bind == 0)
+        rc_bind = bind(sockfd, addr_info->ai_addr, sizeof(struct addrinfo));
+
+    if(rc_bind==-1)
+        exit(-1);
+
+    openlog("syslog_socket_assignment", LOG_PID, LOG_USER);
+
+    struct sigaction new_action;
+    memset((void *)&new_action, 0, sizeof(struct sigaction));
+    new_action.sa_handler = signal_handler;
+    if ((sigaction(SIGTERM, &new_action, NULL) != 0) || (sigaction(SIGINT, &new_action, NULL) != 0)) {
+        return 0;
+    }
+
+    if (argc == 2 && strcmp(argv[1], "-d") == 0) {
+        socket_daemon();
+    }
+
+    int rc_listen = listen(sockfd, 50);
+    if(rc_listen==-1)
+        exit(-1);
+
+    int data_fd = open(FILE_PATH, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if(data_fd==-1)
+        exit(-1);
+
+    while (accept_conn_loop) {
+        struct sockaddr addr_cli;
+        int connfd = accept_conn(sockfd, &addr_cli);
+        if (connfd == -1) {
+            shutdown(sockfd, SHUT_RDWR);
+            continue;
+        }
+
+        char str_ipcli[BUFFER_SIZE];
+        get_ipcli(&addr_cli, str_ipcli);
+        syslog(LOG_INFO, "Accepted connection from %s", str_ipcli);
+
+        while (true) {
+            /// receive data - write to file
+            char recv_buff[BUFFER_SIZE + 1];
+            memset((void *)recv_buff, 0, BUFFER_SIZE + 1);
+            int rc_recvdata = recv(connfd, recv_buff, BUFFER_SIZE, 0);
+            if(rc_recvdata==-1)
+                exit(-1);
+            int rc_writefile = write(data_fd, (const void *)recv_buff, rc_recvdata);
+            if(rc_writefile==-1)
+                exit(-1);
+
+            char *pch = strstr(recv_buff, "\n");
+            if (pch != NULL)
+                break;
+        }
+
+        int data_size = lseek(data_fd, 0L, SEEK_CUR);
+        char send_buff[BUFFER_SIZE];
+        lseek(data_fd, 0L, SEEK_SET);
+        do {
+            int rc_readfile = read(data_fd, send_buff, BUFFER_SIZE);
+            if(rc_readfile==-1)
+                exit(-1);
+            int rc_senddata = send(connfd, send_buff, rc_readfile, 0);
+            if(rc_senddata==-1)
+                exit(-1);
+            data_size -= rc_readfile;
+            memset(send_buff, 0, BUFFER_SIZE);
+        } while (data_size > 0);
+
+        syslog(LOG_INFO, "Closed connection from %s", str_ipcli);
+    }
+
+    /// shutdown
+    close(data_fd);
+    closelog();
+    remove(FILE_PATH);
+
+    return 0;
+}
+  

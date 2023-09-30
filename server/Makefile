@@ -1,17 +1,23 @@
+DEF_CC = gcc 
+CC = $(DEF_CC)
+CFLAGS = -Wall -Werror
 
-SRC := aesdsocket.c 
+ifdef CROSS_COMPILE
+	CC = $(CROSS_COMPILE)$(DEF_CC)
+endif
+
+SRCS = aesdsocket.c
+OBJS = $(SRCS:.c=.o)
+
 TARGET = aesdsocket
-OBJS := $(SRC:.c=.o)
-
-CROSS_COMPILE:=
-CC:= $(CROSS_COMPILE)gcc
-
 
 all: $(TARGET)
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(TARGET) : $(OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(LDFLAGS)
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 clean:
-	-rm -f *.o $(TARGET) *.elf *.map
+	rm -f $(OBJS) $(TARGET)
 
