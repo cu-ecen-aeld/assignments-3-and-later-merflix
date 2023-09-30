@@ -1,16 +1,17 @@
-CROSS_COMPILE = aarch64-none-linux-gnu-gcc
-NATIVE = gcc
+
+SRC := writer.c 
 TARGET = writer
-SRC = writer.c
+OBJS := $(SRC:.c=.o)
 
-all: 
-	$(CROSS_COMPILE) $(SRC) -o $(OBJECTS) $(TARGET)
+CROSS_COMPILE:=
+CC:= $(CROSS_COMPILE)gcc
 
-x86-64: 
-	$(NATIVE) $(SRC) -o $(OBJECTS) $(TARGET)
 
-arm:
-	$(CROSS_COMPILE) $(SRC) -o $(OBJECTS) $(TARGET)
+all: $(TARGET)
+
+$(TARGET) : $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
 clean:
-	rm -rf $(OBJECTS) $(TARGET)
+	-rm -f *.o $(TARGET) *.elf *.map
+

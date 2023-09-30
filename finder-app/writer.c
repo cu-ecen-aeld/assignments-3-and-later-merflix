@@ -1,42 +1,43 @@
-#include <string.h>
-#include <stdlib.h>
-#include <sys/syslog.h>
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include<syslog.h>
+#include <string.h>
+
+int main(int argc, char *argv[]) {
+openlog("writer", LOG_PID|LOG_CONS, LOG_USER);
+
+FILE *fp;
+int output;
+char mystring[100];
 
 
-int main(int argc, char* argv[]){
+if (argc != 3) { 
 
-    openlog("WriterApp", LOG_NDELAY, LOG_LOCAL0);
-
-
-    // check argument first
-    if (argc != 3){
-        syslog(LOG_ERR, "App needs exactly two arguments");
-        return 1;
-    }
-
-    // store arguments
-    const char* file_name = argv[1];
-    const char* content = argv[2];
-
-    int fd = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0600);
-
-    if (fd == -1){
-        syslog(LOG_ERR, "Cannot open the given file");
-        return 1;
-    }
-
-    int return_val = write(fd, content, strlen(content));
-
-    if (return_val == -1){
-        syslog(LOG_ERR, "Couldnt complete the write operation, make sure you have appropriate permissions");
-        return 1;
-    }
-
-    syslog(LOG_INFO, "Successfully wrote the content to file!");
-
-
-    return EXIT_SUCCESS;
+syslog(LOG_ERR, "number of arguments shall be 2");
+return 1 ;
 }
+
+sprintf(mystring,"%s%s%s%s\n","Writing ",argv[2]," to ",argv[1]);
+printf (mystring);
+
+syslog(LOG_DEBUG, "%s",mystring);
+
+
+
+
+fp  = fopen (argv[1], "w");
+
+if (fp==NULL)
+{
+    syslog(LOG_ERR, "cannot write to file");
+    return 1 ;
+}
+output = fprintf (fp, "%s\n", argv[2]);
+if (output==NULL)
+{
+    syslog(LOG_ERR, "cannot write to file");
+    return 1 ;
+}
+fclose (fp);
+closelog();
+}
+

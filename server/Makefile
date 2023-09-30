@@ -1,14 +1,17 @@
-CROSS_COMPILE = aarch64-none-linux-gnu-gcc
-NATIVE = gcc
+
+SRC := aesdsocket.c 
 TARGET = aesdsocket
-SRC = aesdsocket.c
+OBJS := $(SRC:.c=.o)
 
-all: 
-	$(NATIVE) $(SRC) -o $(OBJECTS) $(TARGET)
+CROSS_COMPILE:=
+CC:= $(CROSS_COMPILE)gcc
 
-arm:
-	$(CROSS_COMPILE) $(SRC) -o $(OBJECTS) $(TARGET)
+
+all: $(TARGET)
+
+$(TARGET) : $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
 clean:
-	rm -rf $(OBJECTS) $(TARGET)
+	-rm -f *.o $(TARGET) *.elf *.map
 
