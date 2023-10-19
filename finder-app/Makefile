@@ -3,8 +3,8 @@ SRC := writer.c
 TARGET = writer
 OBJS := $(SRC:.c=.o)
 
-CROSS_COMPILE:=
-CC:= $(CROSS_COMPILE)gcc
+CROSS_COMPILE:= aarch64-none-linux-gnu-gcc
+CC:= $(CROSS_COMPILE)
 
 
 all: $(TARGET)
