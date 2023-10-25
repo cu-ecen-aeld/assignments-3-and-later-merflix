@@ -7,7 +7,7 @@ set -u
 
 NUMFILES=10
 WRITESTR=AELD_IS_FUN
-WRITEDIR=/tmp/assignment4-result.txt  # modif. for ass4-part2 /tmp/aeld-data
+WRITEDIR=/tmp/aeld-data
 CONFIGFILES=/etc/finder-app/conf
 username=$(cat ${CONFIGFILES}/username.txt)
 
