@@ -59,9 +59,9 @@ do
 	/bin/writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(/usr/bin/finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(/bin/finder.sh "$WRITEDIR" "$WRITESTR")
 #  c. Modify your finder-test.sh script to write a file with output of the finder command to 
-echo $(/usr/bin/finder.sh "$WRITEDIR" "$WRITESTR") > /tmp/assignment4-result.txt
+echo $(/bin/finder.sh "$WRITEDIR" "$WRITESTR") > /tmp/assignment4-result.txt
 rm -rf /tmp/aeld-data
 
 set +e
