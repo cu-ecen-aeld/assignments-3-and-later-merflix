@@ -1,0 +1,2 @@
+#!/bin/bash
+start-stop-daemon -Sd [other arguments] aesdsocket
